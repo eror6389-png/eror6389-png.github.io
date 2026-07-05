@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Core Project</title>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #05070b;
+            font-family: 'Comfortaa', sans-serif;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            pointer-events: none;
+        }
+        .main-number {
+            font-size: 150px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.2);
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+            transition: color 1s ease, text-shadow 1s ease;
+        }
+        .main-number.complete {
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="spaceCanvas"></canvas>
+
+    <div class="container">
+        <div class="main-number" id="center11">11</div>
+    </div>
+
+    <audio id="bgMusic" src="music.mp3" preload="auto"></audio>
+
+    <script>
+        const canvas = document.getElementById('spaceCanvas');
+        const ctx = canvas.getContext('2d');
+        const center11 = document.getElementById('center11');
+        const bgMusic = document.getElementById('bgMusic');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            generate11Pattern();
+        });
+
+        const mouse = { x: null, y: null, active: false, radius: 120 };
+        const particleCount = 550; 
+        const particles = [];
+        
+        let isTimeFor11 = false;
+        let globalFrameCount = 0;
+        let isMusicStarted = false; 
+        const targets11 = [];
+
+        function generate11Pattern() {
+            targets11.length = 0;
+            const cx = width / 2;
+            const cy = height / 2;
+            const scale = 140; 
+
+            for (let i = 0; i < particleCount; i++) {
+                let tx = cx;
+                let ty = cy;
+                
+                if (i < particleCount / 2) {
+                    let p = i / (particleCount / 2);
+                    tx = cx - 45; 
+                    ty = cy - (scale * 0.5) + (p * scale);
+                    if (p < 0.15) {
+                        tx -= (0.15 - p) * scale * 0.3;
+                        ty += (0.15 - p) * scale * 0.1;
+                    }
+                } else {
+                    let p = (i - particleCount / 2) / (particleCount / 2);
+                    tx = cx + 45; 
+                    ty = cy - (scale * 0.5) + (p * scale);
+                    if (p < 0.15) {
+                        tx -= (0.15 - p) * scale * 0.3;
+                        ty += (0.15 - p) * scale * 0.1;
+                    }
+                }
+
+                tx += (Math.random() - 0.5) * 12;
+                ty += (Math.random() - 0.5) * 12;
+                targets11.push({ x: tx, y: ty });
+            }
+        }
+
+        generate11Pattern();
+
+        class Particle {
+            constructor(index) {
+                this.index = index;
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.returnX = this.x;
+                this.returnY = this.y;
+                this.baseSize = Math.random() * 3 + 4; 
+                this.size = this.baseSize;
+                this.speedX = (Math.random() - 0.5) * 1.5;
+                this.speedY = (Math.random() - 0.5) * 1.5;
+                this.opacity = Math.random() * 0.5 + 0.2;
+                this.escapeTimer = 0; 
+            }
+
+            update() {
+                let mainTargetX, mainTargetY;
+                if (isTimeFor11 && targets11[this.index]) {
+                    mainTargetX = targets11[this.index].x;
+                    mainTargetY = targets11[this.index].y;
+                } else {
+                    this.returnX += this.speedX;
+                    this.returnY += this.speedY;
+
+                    if (this.returnX < 0 || this.returnX > width) this.speedX *= -1;
+                    if (this.returnY < 0 || this.returnY > height) this.speedY *= -1;
+                    
+                    mainTargetX = this.returnX;
+                    mainTargetY = this.returnY;
+                }
+
+                if (mouse.active) {
+                    const dx = this.x - mouse.x;
+                    const dy = this.y - mouse.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < mouse.radius) {
+                        const force = (mouse.radius - distance) / mouse.radius;
+                        this.x += (dx / (distance || 1)) * force * 12;
+                        this.y += (dy / (distance || 1)) * force * 12;
+                        this.size = this.baseSize + (force * 2);
+                        this.escapeTimer = 180; 
+                    }
+                }
+
+                if (this.escapeTimer > 0) {
+                    this.escapeTimer--;
+                    this.x += (mainTargetX - this.x) * 0.03;
+                    this.y += (mainTargetY - this.y) * 0.03;
+                } else {
+                    this.x += (mainTargetX - this.x) * 0.05;
+                    this.y += (mainTargetY - this.y) * 0.05;
+                    this.size = this.baseSize;
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.font = `700 ${this.size}px 'Comfortaa', sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('11', this.x, this.y);
+            }
+        }
+
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new Particle(i));
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            globalFrameCount++;
+
+            // ثانیه ۳: پخش موزیک فقط برای ۱ بار بدون تکرار
+            if (globalFrameCount >= 180 && !isMusicStarted) {
+                isMusicStarted = true;
+                bgMusic.play().catch(e => console.log("باز کردن قفل صدا با تعامل..."));
+            }
+
+            // ثانیه ۴: جذب شدن ذرات
+            if (!isTimeFor11 && globalFrameCount >= 240) {
+                isTimeFor11 = true;
+                center11.classList.add('complete');
+            }
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        const unlock = () => {
+            bgMusic.play().then(() => {
+                if (!isMusicStarted) {
+                    bgMusic.pause();
+                    bgMusic.currentTime = 0;
+                }
+            }).catch(e => console.log(e));
+            window.removeEventListener('touchstart', unlock);
+            window.removeEventListener('mousedown', unlock);
+        };
+        window.addEventListener('touchstart', unlock);
+        window.addEventListener('mousedown', unlock);
+
+        const startAction = (e) => {
+            mouse.active = true;
+            const point = e.touches ? e.touches[0] : e;
+            mouse.x = point.clientX;
+            mouse.y = point.clientY;
+        };
+
+        const moveAction = (e) => {
+            if (!mouse.active) return;
+            const point = e.touches ? e.touches[0] : e;
+            mouse.x = point.clientX;
+            mouse.y = point.clientY;
+        };
+
+        const endAction = () => { mouse.active = false; };
+
+        window.addEventListener('mousedown', startAction);
+        window.addEventListener('mousemove', moveAction, { passive: true });
+        window.addEventListener('mouseup', endAction);
+        window.addEventListener('touchstart', startAction);
+        window.addEventListener('touchmove', moveAction, { passive: true });
+        window.addEventListener('touchend', endAction);
+
+        animate();
+    </script>
+</body>
+</html>
